@@ -6,7 +6,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { loadConfig } from './auth.js';
 import { PlaudClient } from './client.js';
-import { formatMarkdown } from './formatter.js';
+import { formatMarkdown, formatDuration } from './formatter.js';
 
 export async function startMcpServer(): Promise<void> {
   const server = new Server(
@@ -67,7 +67,7 @@ export async function startMcpServer(): Promise<void> {
         const list = recordings.map(r => ({
           id: r.id,
           date: new Date(r.start_time).toISOString().slice(0, 10),
-          duration: `${Math.round(r.duration / 60000)}m`,
+          duration: formatDuration(r.duration),
           title: r.filename,
           has_transcript: !!r.is_trans,
           has_summary: !!r.is_summary,
@@ -77,9 +77,13 @@ export async function startMcpServer(): Promise<void> {
 
       case 'plaud_get_transcript': {
         const id = args.recording_id as string;
-        const recording = await client.getRecording(id);
-        const markdown = formatMarkdown(recording);
-        return { content: [{ type: 'text', text: markdown }] };
+        const details = await client.getRecordingDetails([id]);
+        if (details.length === 0) {
+          return { content: [{ type: 'text', text: 'Recording not found' }] };
+        }
+        const { main, transcript } = formatMarkdown(details[0]);
+        const full = transcript ? main + '\n\n' + transcript : main;
+        return { content: [{ type: 'text', text: full }] };
       }
 
       case 'plaud_search_recordings': {
@@ -91,7 +95,7 @@ export async function startMcpServer(): Promise<void> {
         const list = matches.map(r => ({
           id: r.id,
           date: new Date(r.start_time).toISOString().slice(0, 10),
-          duration: `${Math.round(r.duration / 60000)}m`,
+          duration: formatDuration(r.duration),
           title: r.filename,
         }));
         return { content: [{ type: 'text', text: JSON.stringify(list, null, 2) }] };

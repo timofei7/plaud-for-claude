@@ -2,18 +2,9 @@ import type {
   AuthConfig,
   PlaudRecording,
   PlaudRecordingListResponse,
-  PlaudRecordingDetailResponse,
-  PlaudSpeaker,
-  PlaudSpeakerListResponse,
-  PlaudTag,
-  PlaudTagListResponse,
   PlaudTempUrlResponse,
 } from './types.js';
-
-const API_BASE: Record<string, string> = {
-  us: 'https://api.plaud.ai',
-  eu: 'https://api-euc1.plaud.ai',
-};
+import { API_BASE } from './constants.js';
 
 const BROWSER_HEADERS: Record<string, string> = {
   'Accept': '*/*',
@@ -32,12 +23,10 @@ const BROWSER_HEADERS: Record<string, string> = {
 export class PlaudClient {
   private baseUrl: string;
   private token: string;
-  private region: string;
 
   constructor(auth: AuthConfig) {
     this.baseUrl = API_BASE[auth.region];
     this.token = auth.token;
-    this.region = auth.region;
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -62,7 +51,6 @@ export class PlaudClient {
       const domains = (data.data as Record<string, unknown>)?.domains as Record<string, string> | undefined;
       if (domains?.api) {
         this.baseUrl = domains.api.startsWith('http') ? domains.api : `https://${domains.api}`;
-        this.region = this.baseUrl.includes('euc1') ? 'eu' : 'us';
         return this.request<T>(path, options);
       }
     }
@@ -103,9 +91,12 @@ export class PlaudClient {
     return all;
   }
 
-  async getRecording(id: string): Promise<PlaudRecording> {
-    const res = await this.request<PlaudRecordingDetailResponse>(`/file/${id}`);
-    return res.data_file;
+  async getRecordingDetails(ids: string[]): Promise<PlaudRecording[]> {
+    const res = await this.request<PlaudRecordingListResponse>('/file/list', {
+      method: 'POST',
+      body: JSON.stringify(ids),
+    });
+    return res.data_file_list ?? [];
   }
 
   async getAudioUrl(id: string): Promise<string | null> {
@@ -113,13 +104,4 @@ export class PlaudClient {
     return res.temp_url ?? res.url ?? (res.data as Record<string, string> | undefined)?.url ?? null;
   }
 
-  async listSpeakers(): Promise<PlaudSpeaker[]> {
-    const res = await this.request<PlaudSpeakerListResponse>('/speaker/list');
-    return res.data_speaker_list ?? [];
-  }
-
-  async listTags(): Promise<PlaudTag[]> {
-    const res = await this.request<PlaudTagListResponse>('/filetag/');
-    return res.data_filetag_list ?? [];
-  }
 }

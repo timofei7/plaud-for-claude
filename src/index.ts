@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { interactiveLogin, loadConfig, saveConfig } from './auth.js';
 import { PlaudClient } from './client.js';
 import { syncRecordings } from './sync.js';
+import { formatDuration } from './formatter.js';
 
 const program = new Command();
 
@@ -48,8 +49,7 @@ program
 
     for (const rec of recordings) {
       const date = new Date(rec.start_time).toISOString().slice(0, 10);
-      const mins = Math.round(rec.duration / 60000);
-      const duration = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h${mins % 60}m`;
+      const duration = formatDuration(rec.duration);
       const hasTrans = rec.is_trans ? 'Y' : ' ';
       const hasSumm = rec.is_summary ? 'Y' : ' ';
       console.log(`${date}  ${duration.padEnd(10)} ${hasTrans.padEnd(3)} ${hasSumm.padEnd(3)} ${rec.filename}`);

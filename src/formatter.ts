@@ -1,6 +1,6 @@
 import type { PlaudRecording, AiContentJson } from './types.js';
 
-function formatDuration(ms: number): string {
+export function formatDuration(ms: number): string {
   const totalMin = Math.round(ms / 60000);
   if (totalMin < 60) return `${totalMin}m`;
   const hours = Math.floor(totalMin / 60);
@@ -18,7 +18,6 @@ function formatTimestamp(ms: number): string {
 function parseSummary(aiContent: string | AiContentJson | null | undefined): string {
   if (!aiContent) return '';
   if (typeof aiContent === 'string') {
-    // Could be JSON string or plain markdown
     try {
       const parsed = JSON.parse(aiContent) as AiContentJson;
       return parseSummary(parsed);
@@ -26,7 +25,6 @@ function parseSummary(aiContent: string | AiContentJson | null | undefined): str
       return aiContent.trim();
     }
   }
-  // Object — check various shapes
   if (aiContent.markdown) return aiContent.markdown.trim();
   if (aiContent.summary) return aiContent.summary.trim();
   if (aiContent.content?.markdown) return aiContent.content.markdown.trim();
@@ -43,16 +41,28 @@ function slugify(text: string): string {
 
 export function formatFilename(recording: PlaudRecording): string {
   const date = new Date(recording.start_time).toISOString().slice(0, 10);
-  const slug = slugify(recording.filename || 'untitled');
-  return `${date}_${slug}.md`;
+  const slug = slugify(recording.filename || 'untitled') || 'recording';
+  const idSuffix = recording.id.slice(0, 8);
+  return `${date}_${slug}_${idSuffix}.md`;
 }
 
-export function formatMarkdown(recording: PlaudRecording): string {
+export function transcriptFilename(mainFilename: string): string {
+  return mainFilename.replace(/\.md$/, '_transcript.md');
+}
+
+export interface FormattedRecording {
+  main: string;
+  transcript: string | null;
+}
+
+export function formatMarkdown(recording: PlaudRecording): FormattedRecording {
   const date = new Date(recording.start_time).toISOString().slice(0, 10);
   const duration = formatDuration(recording.duration);
   const title = recording.filename || 'Untitled Recording';
+  const mainFile = formatFilename(recording);
+  const transFile = transcriptFilename(mainFile);
+  const transNoteName = transFile.replace(/\.md$/, '');
 
-  // Extract unique speakers
   const speakers = [
     ...new Set(
       (recording.trans_result ?? [])
@@ -61,7 +71,7 @@ export function formatMarkdown(recording: PlaudRecording): string {
     ),
   ];
 
-  // Build frontmatter
+  // --- Main note ---
   const frontmatter = [
     '---',
     `created: ${date}`,
@@ -82,30 +92,45 @@ export function formatMarkdown(recording: PlaudRecording): string {
   frontmatter.push('  - plaud');
   frontmatter.push('---');
 
-  const lines = [...frontmatter, ''];
+  const mainLines = [...frontmatter, ''];
 
-  // Summary
   const summary = parseSummary(recording.ai_content);
   if (summary) {
-    lines.push('## Summary', '', summary, '');
+    mainLines.push('## Summary', '', summary, '');
   }
 
-  // Transcript
   const segments = recording.trans_result ?? [];
   if (segments.length > 0) {
-    lines.push('## Transcript', '');
+    mainLines.push(`## Transcript`, '', `![[${transNoteName}]]`, '');
+  } else {
+    mainLines.push('*No transcript available.*', '');
+  }
+
+  // --- Transcript note ---
+  let transcript: string | null = null;
+  if (segments.length > 0) {
+    const transLines = [
+      '---',
+      `created: ${date}`,
+      `parent: "[[${mainFile.replace(/\.md$/, '')}]]"`,
+      'tags:',
+      '  - plaud-transcript',
+      '---',
+      '',
+    ];
+
     for (const seg of segments) {
       const ts = formatTimestamp(seg.start_time);
       const speaker = seg.speaker ? `**${seg.speaker}** ` : '';
       const text = (seg.content ?? '').trim();
       if (text) {
-        lines.push(`[${ts}] ${speaker}${text}`);
-        lines.push('');
+        transLines.push(`[${ts}] ${speaker}${text}`);
+        transLines.push('');
       }
     }
-  } else {
-    lines.push('*No transcript available.*', '');
+
+    transcript = transLines.join('\n');
   }
 
-  return lines.join('\n');
+  return { main: mainLines.join('\n'), transcript };
 }

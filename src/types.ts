@@ -1,17 +1,5 @@
 /** Raw API response types from Plaud */
 
-export interface PlaudApiResponse<T> {
-  status: number;
-  msg?: string;
-  data?: T;
-}
-
-export interface PlaudAuthResponse {
-  status: number;
-  access_token: string;
-  token_type: string;
-}
-
 export interface PlaudTranscriptSegment {
   speaker: string;
   content: string;
@@ -42,33 +30,10 @@ export interface PlaudRecordingListResponse {
   data_file_list: PlaudRecording[];
 }
 
-export interface PlaudRecordingDetailResponse {
-  data_file: PlaudRecording;
-}
-
 export interface PlaudTempUrlResponse {
   temp_url?: string;
   url?: string;
   data?: { url?: string };
-}
-
-export interface PlaudSpeaker {
-  id: string;
-  name: string;
-}
-
-export interface PlaudSpeakerListResponse {
-  data_speaker_list: PlaudSpeaker[];
-}
-
-export interface PlaudTag {
-  id: string;
-  name: string;
-  file_count: number;
-}
-
-export interface PlaudTagListResponse {
-  data_filetag_list: PlaudTag[];
 }
 
 /** AI content can arrive in many shapes */
