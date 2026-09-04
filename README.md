@@ -1,3 +1,9 @@
+# ⚠️ DEPRECATED — no longer supported
+
+This repository is archived and no longer maintained. No further development, fixes, or support.
+
+---
+
 # plaud-for-claude
 
 Sync [Plaud AI](https://www.plaud.ai/) voice recordings to an Obsidian vault as formatted markdown notes with speaker labels, timestamps, and AI summaries.
